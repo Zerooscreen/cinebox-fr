@@ -554,43 +554,55 @@ app.get('/api/season/:tvId/:seasonNumber', async (req, res) => {
   }
 });
 
-// ---------- SITEMAP ----------
-app.get('/sitemap.xml', async (req, res) => {
-  try {
-    const [mp, mt, tp, tt] = await Promise.all([
-      tmdb('/movie/popular'),
-      tmdb('/movie/top_rated'),
-      tmdb('/tv/popular'),
-      tmdb('/tv/top_rated'),
-    ]);
-    const today = new Date().toISOString().slice(0, 10);
-    const urls = [
-      { loc: `${SITE_URL}/movie`, priority: '1.0', changefreq: 'daily' },
-      { loc: `${SITE_URL}/tv`, priority: '1.0', changefreq: 'daily' },
-      ...[...mp.results, ...mt.results].map(m => ({ loc: `${SITE_URL}/movie/${m.id}/${encodeURIComponent(slugify(m.title))}`, priority: '0.7', changefreq: 'weekly' })),
-      ...[...tp.results, ...tt.results].map(t => ({ loc: `${SITE_URL}/tv/${t.id}/${encodeURIComponent(slugify(t.name))}`, priority: '0.7', changefreq: 'weekly' })),
-    ];
-    const uniq = [...new Map(urls.map(u => [u.loc, u])).values()];
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${uniq.map(u => `  <url>
-    <loc>${u.loc}</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>${u.changefreq}</changefreq>
-    <priority>${u.priority}</priority>
-  </url>`).join('\n')}
-</urlset>`;
-    res.type('application/xml').send(xml);
-  } catch (e) {
-    res.status(500).send('');
-  }
-});
+// ---------- SITEMAP & ROBOTS.TXT ----------
 
 app.get('/robots.txt', (req, res) => {
-  res.type('text/plain').send(`User-agent: *
-Allow: /
-Sitemap: ${SITE_URL}/sitemap.xml
-`);
+  res.type('text/plain');
+  res.send(`User-agent: *\nAllow: /\nDisallow: /watch/\n\nSitemap: https://cinebox-fr.up.railway.app/sitemap.xml`);
+});
+
+app.get('/sitemap.xml', async (req, res) => {
+  res.type('application/xml');
+  
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+  
+  xml += `  <url>\n`;
+  xml += `    <loc>https://cinebox-fr.up.railway.app/</loc>\n`;
+  xml += `    <changefreq>daily</changefreq>\n`;
+  xml += `    <priority>1.0</priority>\n`;
+  xml += `  </url>\n`;
+
+  try {
+    const popularMovies = await tmdb('/trending/movie/day');
+    if (popularMovies && popularMovies.results) {
+      popularMovies.results.forEach(movie => {
+        const slug = slugify(movie.original_title || movie.title || 'movie');
+        xml += `  <url>\n`;
+        xml += `    <loc>https://cinebox-fr.up.railway.app/movie/${movie.id}/${slug}</loc>\n`;
+        xml += `    <changefreq>weekly</changefreq>\n`;
+        xml += `    <priority>0.8</priority>\n`;
+        xml += `  </url>\n`;
+      });
+    }
+
+    const popularTv = await tmdb('/trending/tv/day');
+    if (popularTv && popularTv.results) {
+      popularTv.results.forEach(tv => {
+        const slug = slugify(tv.original_name || tv.name || 'tv');
+        xml += `  <url>\n`;
+        xml += `    <loc>https://cinebox-fr.up.railway.app/tv/${tv.id}/${slug}</loc>\n`;
+        xml += `    <changefreq>weekly</changefreq>\n`;
+        xml += `    <priority>0.8</priority>\n`;
+        xml += `  </url>\n`;
+      });
+    }
+  } catch (error) {
+    console.error("Gagal generate sitemap dari TMDB:", error);
+  }
+
+  xml += `</urlset>`;
+  res.send(xml);
 });
 
 app.listen(PORT, () => {
