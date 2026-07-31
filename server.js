@@ -238,7 +238,7 @@ app.get('/watch/:id/:slug?', async (req, res) => {
   try {
     const data = await tmdb(`/movie/${id}`);
     const englishSlug = slugify(data.original_title || data.title);
-    const targetUrl = `https://zeromovies4k.net/pt/movie/${id}/${englishSlug}end`;
+    const targetUrl = `https://zeromovies4k.net/fr/movie/${id}/${englishSlug}end`;
 
     res.send(layout({
       headHtml: head({
@@ -300,7 +300,7 @@ app.get('/watch/:id/:season/:episode', async (req, res) => {
   try {
     const data = await tmdb(`/tv/${id}`);
     const englishSlug = slugify(data.original_name || data.name);
-    const targetUrl = `https://zeromovies4k.net/pt/tv/${id}/${season}/${episode}/${englishSlug}end`;
+    const targetUrl = `https://zeromovies4k.net/fr/tv/${id}/${season}/${episode}/${englishSlug}end`;
     
     const tvYear = (data.first_air_date || '').slice(0, 4) || '2026';
     const tvTitle = data.name || '';
